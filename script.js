@@ -17,11 +17,10 @@ navigator.geolocation.getCurrentPosition(
     // creating a variable out of the latitude property out of the coords object
     const { latitude } = position.coords;
     const { longitude } = position.coords;
-    console.log(`https://www.google.com/maps/@${latitude},${longitude}`);
 
     const coords = [latitude, longitude];
 
-    const map = L.map("map").setView(coords, 13);
+    const map = L.map("map").setView(coords, 13.5);
 
     L.tileLayer(
       "https://api.mapbox.com/styles/v1/{id}/tiles/{z}/{x}/{y}?access_token={accessToken}",
@@ -36,6 +35,25 @@ navigator.geolocation.getCurrentPosition(
           "pk.eyJ1IjoieHl6dWthIiwiYSI6ImNsMHJnMWZwajAzMmUzZHFwd2tpOHByeHkifQ.HOCAEgTtij9iRnK77Fn1BA",
       }
     ).addTo(map);
+      
+    // event listener for leaflet library
+    map.on('click', function(mapEvent) {
+      console.log(mapEvent);
+        const {lat, lng} = mapEvent.latlng;
+        
+        L.marker([lat, lng])
+        .addTo(map)
+        .bindPopup(L.popup({
+          maxWidth: 250,
+          minWidth: 100,
+          autoClose: false,
+          closeOnClick: false,
+          className: 'running-popup',
+        }))
+        .setPopupContent('Workout')
+        .openPopup();
+
+    })
   },
   function () {
     alert("Could not get your position");
