@@ -71,9 +71,10 @@ class App {
   #workouts = [];
 
   constructor() {
+    // Gets user's position
     this._getPosition();
 
-    // Event listener: User pressing enter to submit form to create a new workout
+    // Event handlers
     // Since the this keyword for _newWorkout will point to the form, we need to bind to the object itself
     form.addEventListener("submit", this._newWorkout.bind(this));
 
@@ -82,6 +83,9 @@ class App {
 
     // Hovers to clicked workout list location
     containerWorkouts.addEventListener("click", this._moveToPopup.bind(this));
+
+    // Gets data from local storage
+    this._getLocalStorage();
   }
 
   _getPosition() {
@@ -119,6 +123,11 @@ class App {
 
     // Handling clicks on map
     this.#map.on("click", this._showForm.bind(this));
+
+    // Renders workout markers on map for each item stored in the this.#workouts array from local storage
+    this.#workouts.forEach(work => {
+      this._renderWorkoutMarker(work);
+    });
   }
 
   _showForm(mapE) {
@@ -198,6 +207,9 @@ class App {
 
     // Resets input fields
     this._hideForm();
+
+    // Set local storage to all workouts
+    this._setLocalStorage();
   }
 
   // Render workout left marker
@@ -289,6 +301,29 @@ class App {
         duration: 1,
       }
     }
+  }
+
+  _setLocalStorage() {
+    localStorage.setItem('workouts', JSON.stringify(this.#workouts));
+  }
+
+  _getLocalStorage() {
+    const data = JSON.parse(localStorage.getItem('workouts'));
+    
+    if (!data) return;
+
+    // if there is data stored in local storage, reassign the data to this.#workouts
+    this.#workouts = data;
+
+    this.#workouts.forEach(work => {
+      this._renderWorkout(work);
+    })
+  }
+
+  // resets the map - deletes all workouts
+  reset() {
+    localStorage.removeItem('workouts');
+    location.reload();
   }
 }
 
