@@ -66,6 +66,7 @@ const inputElevation = document.querySelector(".form__input--elevation");
 
 class App {
   #map;
+  #mapZoomLevel = 13;
   #mapEvent;
   #workouts = [];
 
@@ -78,6 +79,9 @@ class App {
 
     // Event listener: Switches form input type when switching between running and cycling
     inputType.addEventListener("change", this._toggleElevationField);
+
+    // Hovers to clicked workout list location
+    containerWorkouts.addEventListener("click", this._moveToPopup.bind(this));
   }
 
   _getPosition() {
@@ -97,7 +101,7 @@ class App {
 
     const coords = [latitude, longitude];
 
-    this.#map = L.map("map").setView(coords, 13.5);
+    this.#map = L.map("map").setView(coords, this.#mapZoomLevel);
 
     L.tileLayer(
       "https://api.mapbox.com/styles/v1/{id}/tiles/{z}/{x}/{y}?access_token={accessToken}",
@@ -265,6 +269,26 @@ class App {
 
     // adds form as a sibling element
     form.insertAdjacentHTML("afterend", html);
+  }
+
+  _moveToPopup(e) {
+    // listens for clicks in the closest parent class named workout
+    const workoutEl = e.target.closest(".workout");
+
+    if (!workoutEl) return;
+
+    // finding specific workout clicked based off matching id
+    const workout = this.#workouts.find(
+      (work) => work.id === workoutEl.dataset.id
+    );
+
+    // moves to the clicked location
+    this.#map.setView(workout.coords, this.#mapZoomLevel), {
+      animate: true,
+      pan: {
+        duration: 1,
+      }
+    }
   }
 }
 
