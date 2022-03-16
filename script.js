@@ -3,20 +3,9 @@
 // prettier-ignore
 const months = ['January', 'February', 'March', 'April', 'May', 'June', 'July', 'August', 'September', 'October', 'November', 'December'];
 
-const form = document.querySelector(".form");
-const containerWorkouts = document.querySelector(".workouts");
-const inputType = document.querySelector(".form__input--type");
-const inputDistance = document.querySelector(".form__input--distance");
-const inputDuration = document.querySelector(".form__input--duration");
-const inputCadence = document.querySelector(".form__input--cadence");
-const inputElevation = document.querySelector(".form__input--elevation");
-
-// Creating a global variable for map and mapEvent
-let map, mapEvent;
-
 class Workout {
   date = new Date();
-  id = (Date.now() + '').slice(-10);
+  id = (Date.now() + "").slice(-10);
 
   constructor(coords, distance, duration) {
     this.coords = coords;
@@ -26,6 +15,8 @@ class Workout {
 }
 
 class Running extends Workout {
+  type = 'running';
+
   constructor(coords, distance, duration, cadence) {
     super(coords, distance, duration);
     this.cadence = cadence;
@@ -40,6 +31,8 @@ class Running extends Workout {
 }
 
 class Cycling extends Workout {
+  type = 'cycling';
+
   constructor(coords, distance, duration, elevationGain) {
     super(coords, distance, duration);
     this.elevation = elevationGain;
@@ -53,20 +46,25 @@ class Cycling extends Workout {
   }
 }
 
-const run1 = new Running([39, -12], 5, 24, 188) 
-const cycle1 = new Cycling([39, -12], 38, 90, 523)
-console.log(run1, cycle1);
-
 // ******************* APPLICATION ARCHITECTURE ******************* //
+const form = document.querySelector(".form");
+const containerWorkouts = document.querySelector(".workouts");
+const inputType = document.querySelector(".form__input--type");
+const inputDistance = document.querySelector(".form__input--distance");
+const inputDuration = document.querySelector(".form__input--duration");
+const inputCadence = document.querySelector(".form__input--cadence");
+const inputElevation = document.querySelector(".form__input--elevation");
+
 class App {
   #map;
   #mapEvent;
-  
+  #workouts = [];
+
   constructor() {
     this._getPosition();
 
     // Event listener: User pressing enter to submit form to create a new workout
-    // Since the this keyword for _newWorkout will point to the form, we need to bind to the object itself 
+    // Since the this keyword for _newWorkout will point to the form, we need to bind to the object itself
     form.addEventListener("submit", this._newWorkout.bind(this));
 
     // Event listener: Switches form input type when switching between running and cycling
@@ -75,37 +73,39 @@ class App {
 
   _getPosition() {
     // Geolocation API
-    navigator.geolocation.getCurrentPosition(this._loadMap.bind(this), function () {
+    navigator.geolocation.getCurrentPosition(
+      this._loadMap.bind(this),
+      function () {
         alert("Could not get your position");
       }
     );
   }
 
   _loadMap(position) {
-      // creating a variable out of the latitude property out of the coords object
-      const { latitude } = position.coords;
-      const { longitude } = position.coords;
+    // creating a variable out of the latitude property out of the coords object
+    const { latitude } = position.coords;
+    const { longitude } = position.coords;
 
-      const coords = [latitude, longitude];
+    const coords = [latitude, longitude];
 
-      this.#map = L.map("map").setView(coords, 13.5);
+    this.#map = L.map("map").setView(coords, 13.5);
 
-      L.tileLayer(
-        "https://api.mapbox.com/styles/v1/{id}/tiles/{z}/{x}/{y}?access_token={accessToken}",
-        {
-          attribution:
-            'Map data &copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors, Imagery © <a href="https://www.mapbox.com/">Mapbox</a>',
-          maxZoom: 18,
-          id: "mapbox/streets-v11",
-          tileSize: 512,
-          zoomOffset: -1,
-          accessToken:
-            "pk.eyJ1IjoieHl6dWthIiwiYSI6ImNsMHJnMWZwajAzMmUzZHFwd2tpOHByeHkifQ.HOCAEgTtij9iRnK77Fn1BA",
-        }
-      ).addTo(this.#map);
+    L.tileLayer(
+      "https://api.mapbox.com/styles/v1/{id}/tiles/{z}/{x}/{y}?access_token={accessToken}",
+      {
+        attribution:
+          'Map data &copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors, Imagery © <a href="https://www.mapbox.com/">Mapbox</a>',
+        maxZoom: 18,
+        id: "mapbox/streets-v11",
+        tileSize: 512,
+        zoomOffset: -1,
+        accessToken:
+          "pk.eyJ1IjoieHl6dWthIiwiYSI6ImNsMHJnMWZwajAzMmUzZHFwd2tpOHByeHkifQ.HOCAEgTtij9iRnK77Fn1BA",
+      }
+    ).addTo(this.#map);
 
-      // Handling clicks on map
-      this.#map.on("click", this._showForm.bind(this));
+    // Handling clicks on map
+    this.#map.on("click", this._showForm.bind(this));
   }
 
   _showForm(mapE) {
@@ -115,22 +115,68 @@ class App {
   }
 
   _toggleElevationField() {
-          // toggling the hidden class on the .form__row parent of inputElevation and inputCadence
-          inputElevation.closest(".form__row").classList.toggle("form__row--hidden");
-          inputCadence.closest(".form__row").classList.toggle("form__row--hidden");
+    // toggling the hidden class on the .form__row parent of inputElevation and inputCadence
+    inputElevation.closest(".form__row").classList.toggle("form__row--hidden");
+    inputCadence.closest(".form__row").classList.toggle("form__row--hidden");
   }
 
   _newWorkout(e) {
     // Prevents page from reloading when form is submitted
     e.preventDefault();
 
+    // Get data from form
+    const type = inputType.value;
+    const distance = +inputDistance.value; // .value comes as strings, + will convert to number
+    const duration = +inputDuration.value;
+    const { lat, lng } = this.#mapEvent.latlng;
+    let workout;
+
+    // Check if data is valid
+    const validInputs = (...inputs) =>
+      inputs.every((inp) => Number.isFinite(inp));
+
+    const allPositive = (...inputs) => inputs.every((inp) => inp > 0);
+
+    // If workout is running, create running object
+    if (type === "running") {
+      const cadence = +inputCadence.value;
+      // Data validation if number
+      if (
+        // !Number.isFinite(distance) ||
+        // !Number.isFinite(duration) ||
+        // !Number.isFinite(cadence)
+        !validInputs(distance, duration, cadence) ||
+        !allPositive(distance, duration, cadence)
+      )
+        return alert("Running inputs have to be a positive number!");
+
+      workout = new Running([lat, lng], distance, duration, cadence);
+    }
+
+    // If workout is cycling, create cycling object
+    if (type === "cycling") {
+      const elevation = +inputElevation.value;
+      if (
+        !validInputs(distance, duration, elevation) ||
+        !allPositive(distance, duration)
+      )
+        return alert("Cycling inputs have to be a positive number!");
+
+      workout = new Cycling([lat, lng], distance, duration, elevation);
+    }
+
+    // Add new object to workout array
+    this.#workouts.push(workout);
+
+    // Render workout on map as marker
+    this.renderWorkoutMarker(workout);
+
     // Resets input fields
     form.reset();
-
-    // Display marker
-    const { lat, lng } = this.#mapEvent.latlng;
-
-    L.marker([lat, lng])
+  }
+  // Render workout left marker
+  renderWorkoutMarker(workout) {
+    L.marker(workout.coords)
       .addTo(this.#map)
       .bindPopup(
         L.popup({
@@ -138,12 +184,12 @@ class App {
           minWidth: 100,
           autoClose: false,
           closeOnClick: false,
-          className: "running-popup",
+          className: `${workout.type}-popup`,
         })
       )
-      .setPopupContent("Workout")
-      .openPopup();   
-    }
+      .setPopupContent('workout')
+      .openPopup();
+  }
 }
 
 // Creating a new object to trigger the constructor function and _getPosition() and _loadMap(position)
